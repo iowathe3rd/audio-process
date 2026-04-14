@@ -1,0 +1,23 @@
+# Ralph Context Snapshot
+
+- Task statement: Build a production-ready audio call processing pipeline with stages: normalize -> diarization -> segmentation -> ASR -> merge -> anonymization -> enhancement -> JSON output.
+- Desired outcome: End-to-end CLI pipeline for wav/mp3/m4a input, structured outputs with speakers/timestamps/text variants, persisted intermediate artifacts, rerunnable execution.
+- Known facts/evidence:
+  - Current implementation is monolithic in main.py.
+  - NeMo model import works locally on macOS M1.
+  - Pyannote diarization currently runs successfully.
+  - Google API call currently fails with 403 project access denial when using API-key endpoint.
+- Constraints:
+  - Must use NeMo ASR.
+  - Must use pyannote diarization.
+  - Must use Vertex AI for anonymization and enhancement.
+  - Keep pipeline stage order required by spec.
+  - Preserve ability to run on macOS M1.
+- Unknowns/open questions:
+  - Whether current Google project has Vertex access configured.
+  - Whether user will run with ADC credentials or API key fallback.
+- Likely codebase touchpoints:
+  - main.py
+  - pyproject.toml
+  - README.md
+  - new package folder for pipeline stages and orchestration.

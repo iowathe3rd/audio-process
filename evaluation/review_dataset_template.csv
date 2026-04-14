@@ -1,0 +1,4 @@
+fragment_id,audio_path,language_profile,noise_profile,overlap_profile,duration_sec,diarization_adequacy_score,transcript_faithfulness_score,anonymization_correctness_score,enhancement_safety_score,notes
+sample_001,evaluation/fragments/sample_001.wav,ru,low,low,15,,,,,
+sample_002,evaluation/fragments/sample_002.wav,kk,medium,medium,22,,,,,
+sample_003,evaluation/fragments/sample_003.wav,mixed,high,high,18,,,,,
