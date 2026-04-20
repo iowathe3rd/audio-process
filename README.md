@@ -1,290 +1,169 @@
-## Production Audio Processing Pipeline
+# Production Audio Processing Pipeline
 
-This project provides an end-to-end audio call processing pipeline:
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/)
+[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-1. normalize
-2. audio enhancement (denoise + high-pass + loudness/peak normalization)
-3. diarization (pyannote)
-4. diarization segment post-processing (merge + padding + min-duration)
-5. segmentation
-6. ASR (provider adapters: Google Chirp by default, NeMo fallback)
-7. merge (speaker + timestamps + raw text)
-8. cleanup (remove skipped/empty/duplicate transcript entries)
-9. semantic windows (aggregate ASR chunks into LLM-ready context windows)
-10. anonymization (Vertex AI / Google GenAI)
-11. enhancement (deterministic safe cleanup by default, optional LLM strict mode)
-12. result JSON + metrics JSON
+A modular, production-ready pipeline for end-to-end audio processing. It handles everything from raw audio normalization to diarization, ASR, and LLM-powered text enhancement with robust caching and restartability.
 
-## Input / Output
+---
 
-- Input: wav/mp3/m4a (also supports ogg/flac)
-- Output: structured JSON with per-segment fields:
-  - `speaker`
-  - `start`
-  - `end`
-  - `raw_text`
-  - `anonymized_text`
-  - `enhanced_text`
+## Overview
 
-## Pipeline Architecture
+This pipeline transforms raw audio calls into structured, anonymized, and enhanced transcripts. It is designed for high reliability and follows a sequential ETL pattern.
 
+### Pipeline Stages
 
-Stages are separated into modules under `audio_pipeline/stages`:
+1.  **Normalization:** Converts input (WAV, MP3, M4A, etc.) to 16kHz mono WAV using `torchaudio`.
+2.  **Audio Enhancement:** Applies spectral denoising, high-pass filtering (60Hz), and RMS/Peak normalization.
+3.  **Diarization:** Speaker separation using `pyannote/speaker-diarization-3.1`.
+4.  **Segment Post-processing:** Merges small segments, adds padding, and absorbs short gaps for better ASR context.
+5.  **Segmentation:** Chops the enhanced audio into speaker-specific chunks.
+6.  **ASR (Automatic Speech Recognition):** Supports **Google Chirp** (primary) with automatic fallback to **NVIDIA NeMo** (FastConformer).
+7.  **Merge & Cleanup:** Recombines ASR results with diarization metadata and removes low-quality/duplicate segments.
+8.  **Semantic Windowing:** Groups segments into LLM-ready context windows (~1000 chars) while respecting speaker switches.
+9.  **Anonymization:** Detects and masks PII (Names, Phones, Emails) using Vertex AI / Google GenAI.
+10. **Text Enhancement:** Fixes punctuation, casing, and minor disfluencies using LLM or deterministic rules.
+11. **Quality Analytics:** Computes confidence metrics and identifies potential semantic drift.
 
-- `normalize.py`
-- `enhance_audio.py`
-- `diarization.py`
-- `postprocess_segments.py`
-- `segmentation.py`
-- `asr_adapters.py`
-- `asr_transcribe.py`
-- `asr_nemo.py`
-- `merge.py`
-- `cleanup.py`
-- `semantic_windows.py`
-- `vertex_text.py`
+---
 
-Orchestration is in `audio_pipeline/pipeline.py`.
+## Installation
 
-## Required Credentials
-
-### Hugging Face token (pyannote)
-
-Set one of:
-
-- env: `HF_TOKEN`
-- CLI flag: `--hf-token`
-
-Note: token is required when diarization must run. If artifacts are already cached and valid, rerun can proceed without a token.
-
-### Text processing auth (Google GenAI)
-
-Option A: API key (no project/location required)
-
-Set one of:
-
-- `GOOGLE_API_KEY`
-- `GEMINI_API_KEY`
-- CLI flag: `--google-api-key`
-
-### Vertex AI access (optional alternative)
-
-Use ADC (Application Default Credentials):
+This project uses [uv](https://github.com/astral-sh/uv) for lightning-fast dependency management.
 
 ```bash
-gcloud auth application-default login
-gcloud config set project <YOUR_PROJECT_ID>
+# Clone the repository
+git clone <repo-url>
+cd audio-process
+
+# Install dependencies and create venv
+uv sync
 ```
 
-Set:
+**External Dependencies:**
+- `ffmpeg` or `libsndfile` (for `torchaudio` and `soundfile` backends).
 
-- `GOOGLE_CLOUD_PROJECT`
-- `GOOGLE_CLOUD_LOCATION` (default: `us-central1`)
-- optional: `VERTEX_MODEL_NAME` (default: `gemini-2.5-flash`)
+---
 
-If Vertex is temporarily unavailable, run with `--no-vertex` to keep the rest of the pipeline operational.
+## Authentication
 
-If text processing is enabled but neither API key nor project/location are set, the pipeline fails fast before heavy diarization/ASR compute.
+The pipeline requires several API keys and tokens to function fully.
 
-### Chirp ASR auth
+### 1. Hugging Face (Diarization)
+Required for `pyannote` models.
+- Set `HF_TOKEN` environment variable.
+- Ensure you have accepted the user conditions for `pyannote/speaker-diarization-3.1` and `pyannote/segmentation-3.0` on Hugging Face.
 
-Chirp adapter uses the same `GOOGLE_API_KEY` by default. Additionally, set either:
+### 2. Google Cloud / GenAI (ASR & Text Processing)
+The pipeline supports two ways to authenticate for Google services (Chirp ASR, Gemini LLM):
 
-- `--chirp-recognizer` (full recognizer path), or
-- `--chirp-project` (and optional `--chirp-location`) to build recognizer path automatically.
+**Option A: API Key (Simplest)**
+- Set `GOOGLE_API_KEY` in your `.env` file or environment.
 
-## Run
+**Option B: Vertex AI (Production)**
+- Use Application Default Credentials (ADC): `gcloud auth application-default login`.
+- Set `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` (default: `us-central1`).
 
+---
+
+## Usage
+
+### Basic Run
 ```bash
-uv run main.py \
-  --input audio.wav \
-  --artifacts-dir artifacts
+uv run main.py --input call_recording.wav --artifacts-dir ./runs
 ```
 
-Full run with API key auth:
+### Advanced Configuration
+While the current `main.py` is minimal, you can configure the pipeline via environment variables or by modifying `PipelineConfig`.
 
-```bash
-HF_TOKEN="<your_hf_token>" GOOGLE_API_KEY="<your_google_api_key>" \
-uv run main.py --input audio.wav --artifacts-dir artifacts --force
-```
+| Category | Parameter | Default | Description |
+| :--- | :--- | :--- | :--- |
+| **Audio** | `target_sample_rate` | `16000` | Sample rate for internal processing |
+| | `enable_audio_enhancement` | `True` | Toggle spectral enhancement |
+| **Diarization** | `segment_min_duration_ms` | `450` | Min duration of a speaker segment |
+| | `segment_merge_gap_ms` | `300` | Gap threshold for merging same-speaker segments |
+| **ASR** | `asr_provider` | `chirp` | Primary ASR (`chirp` or `nemo`) |
+| | `asr_fallback_provider` | `nemo` | Fallback if primary fails |
+| | `chirp_language_code` | `ru-RU` | Language for recognition |
+| **LLM** | `text_enhancement_mode` | `deterministic` | `deterministic` or `llm` |
+| | `llm_window_max_chars` | `1000` | Target size for LLM context windows |
 
-Chirp-first ASR test run (with automatic NeMo fallback):
+---
 
-```bash
-HF_TOKEN="<your_hf_token>" GOOGLE_API_KEY="<your_google_api_key>" \
-uv run main.py \
-  --input audio.wav \
-  --artifacts-dir artifacts \
-  --asr-provider chirp \
-  --asr-fallback-provider nemo \
-  --chirp-model chirp_2 \
-  --chirp-language-code ru-RU \
-  --force
-```
+## Artifacts & Output
 
-Useful options:
-
-- `--force` - recompute all stages
-- `--device mps|cuda|cpu` - explicit device selection
-- `--no-vertex` - skip anonymization/enhancement calls to Vertex
-- `--target-sample-rate 16000` - normalization sample rate
-- `--disable-audio-enhancement` - disable speech enhancement stage
-- `--denoise-strength 1.0` - denoise intensity (set `0` to disable denoise only)
-- `--noise-quantile 0.15` - quantile used to estimate stationary noise floor
-- `--highpass-hz 60` - low-cut for hum/rumble suppression
-- `--target-rms-dbfs -22` - output loudness target
-- `--target-peak-dbfs -1` - output peak limiter target
-- `--min-segment-duration-ms 450` - minimum diarization segment length after post-processing
-- `--segment-merge-gap-ms 300` - merge neighboring same-speaker segments when gap is small
-- `--segment-padding-ms 60` - add context around diarization boundaries
-- `--segment-absorb-short-gap-ms 220` - absorb remaining very short segments into nearby context
-- `--asr-provider chirp|nemo` - select ASR backend (default: `chirp`)
-- `--asr-fallback-provider none|nemo|chirp` - automatic fallback backend (default: `nemo`)
-- `--asr-batch-size 8` - chunk batch size for providers that support internal batching (NeMo)
-- `--asr-orchestration-batch-size 64` - max chunks per adapter call
-- `--asr-min-chunk-duration 0.25` - skip ASR for very short chunks
-- `--asr-pretokenize` - enable NeMo pretokenize mode (off by default)
-- `--chirp-model chirp_2` - Google Chirp model name
-- `--chirp-language-code ru-RU` - Chirp recognition language code
-- `--chirp-project <project>` - Chirp project for recognizer path
-- `--chirp-location <location>` - Chirp location for recognizer path
-- `--chirp-recognizer <resource>` - explicit recognizer resource path
-- `--cleanup-min-duration-ms 350` - cleanup threshold for short transcript segments
-- `--cleanup-duplicate-window-ms 280` - window for near-duplicate segment removal
-- `--llm-window-max-chars 1000` - target semantic window size for LLM stages
-- `--llm-window-max-duration 25` - max semantic window duration in seconds
-- `--llm-window-max-gap 1.2` - max gap between neighboring segments in one semantic window
-- `--llm-window-max-speaker-switches 6` - cap speaker switch count in one semantic window
-- `--enhancement-mode deterministic|llm` - deterministic mode is safer and cheaper; `llm` is optional
-- `--enhance-low-confidence` - allow LLM enhancement for low-confidence chunks (off by default)
-- `--low-confidence-min-cps 1.5` - min chars/sec threshold for low-confidence marker
-- `--low-confidence-max-cps 28` - max chars/sec threshold for low-confidence marker
-- `--ab-compare-preprocessing` - run A/B comparison: normalized audio vs enhanced audio
-- `--log-file <path>` - write system logs to a dedicated file
-- `--print-result-json` - optional stdout output for final JSON (disabled by default)
-
-By default the pipeline writes business output only to artifacts (`result.json`) and keeps system logs in `pipeline.log`.
-
-## Artifacts
-
-Artifacts are stored per input file path hash (to avoid collisions for same file names in different folders):
+The pipeline saves everything in a unique run directory under `artifacts/` based on a hash of the input file path.
 
 ```text
-artifacts/<input_stem>_<path_hash>/
-  normalize.json
-  normalized.wav
-  audio_enhancement.json
-  enhanced.wav
-  diarization.json
-  diarization_postprocessed.json
-  segment_postprocess_report.json
-  segment_merge_groups.json
-  chunks/
-    chunk_0000_SPEAKER_00.wav
-    ...
-  segments_manifest.json
-  asr_raw.json
-  asr_report.json
-  merged_raw.json
-  merged_clean.json
-  cleanup_report.json
-  semantic_windows.json
-  semantic_windows_report.json
-  anonymized.json
-  anonymize_report.json
-  enhanced.json
-  enhancement_report.json
-  chunk_quality.json
-  chunk_quality_report.json
-  metrics.json
-  pipeline.log
-  run_state.json
-  result.json
-  ab_comparison.json
+artifacts/<input_name>_<hash>/
+├── normalized.wav       # Cleaned 16kHz mono audio
+├── enhanced.wav         # Denoised/Normalized audio
+├── diarization.json     # Raw speaker timestamps
+├── chunks/              # Individual .wav files per segment
+├── asr_raw.json         # Raw transcription output
+├── merged_clean.json    # Final text after cleanup
+├── result.json          # <--- FINAL BUSINESS OUTPUT
+└── pipeline.log         # Detailed execution logs
 ```
 
-## Restartability
-
-Pipeline is restart-safe:
-
-- If stage artifacts exist, the stage is skipped and cache is reused.
-- Use `--force` to invalidate cache and rerun all stages.
-
-## Quality Review Dataset
-
-A manual evaluation baseline template is included in:
-
-- `evaluation/review_dataset_template.csv`
-- `evaluation/README.md`
-- `evaluation/asr_eval_dataset_template.csv`
-- `evaluation/domain_lexicon_template.csv`
-
-Use this set (20-30 representative fragments) to track diarization adequacy, transcript faithfulness, anonymization correctness, and enhancement safety over time.
-
-For ASR fidelity benchmarking and baseline comparison:
-
-```bash
-uv run evaluation/run_asr_benchmark.py \
-  --dataset evaluation/asr_eval_dataset_template.csv \
-  --backends nemo,faster-whisper \
-  --output evaluation/reports/asr_benchmark.json
-```
-
-## Final Result Format
-
-`result.json`:
-
+### `result.json` Structure
 ```json
 {
   "input_file": "audio.wav",
-  "normalized_audio": "artifacts/audio_<hash>/normalized.wav",
-  "enhanced_audio": "artifacts/audio_<hash>/enhanced.wav",
-  "result_json_path": "artifacts/audio_<hash>/result.json",
-  "audio_enhancement": {
-    "denoise_strength": 1.0,
-    "highpass_hz": 60,
-    "target_rms_dbfs": -22.0,
-    "target_peak_dbfs": -1.0
-  },
-  "artifacts_dir": "artifacts/audio_<hash>",
-  "quality_debug": {
-    "total_diarization_segments": 284,
-    "total_asr_chunks": 163,
-    "skipped_short_chunks": 12,
-    "empty_segments_removed": 9,
-    "merged_segments_count": 121,
-    "overlap_conflicts_count": 4,
-    "audio_preprocessing_mode": "enhanced",
-    "semantic_windows_total": 31,
-    "llm_calls_total": 62,
-    "llm_latency_total_ms": 154322.3
-  },
+  "artifacts_dir": "artifacts/audio_8f2a1b",
   "metrics": {
-    "total_segments_before_postprocess": 288,
-    "total_segments_after_postprocess": 201,
-    "avg_segment_duration_sec": 1.74,
-    "median_segment_duration_sec": 1.36,
-    "short_segment_ratio": 0.07,
-    "asr_chunks_total": 201,
-    "asr_chunks_skipped": 9,
-    "asr_latency_total_ms": 24128.2,
-    "llm_calls_total": 62,
-    "llm_calls_per_min_audio": 7.6,
-    "llm_latency_total_ms": 154322.3,
-    "empty_transcript_ratio": 0.0,
-    "cleanup_removed_segments": 17,
-    "audio_coverage_ratio": 0.96,
-    "semantic_drift_flags_total": 5
+    "total_segments_after_postprocess": 42,
+    "asr_latency_total_ms": 12450,
+    "llm_calls_total": 8,
+    "language_switching_ratio": 0.02
   },
   "segments": [
     {
-      "speaker": "SPEAKER_00",
-      "start": 0.6,
-      "end": 2.1,
-      "raw_text": "...",
-      "anonymized_text": "...",
-      "enhanced_text": "..."
+      "speaker": "SPEAKER_01",
+      "start": 1.2,
+      "end": 4.5,
+      "raw_text": "алло здравствуйте",
+      "anonymized_text": "алло здравствуйте",
+      "enhanced_text": "Алло, здравствуйте."
     }
   ]
 }
+```
+
+---
+
+## Restartability
+
+The pipeline is **restart-safe**. Each stage checks for existing artifacts and validates them against a configuration fingerprint.
+- If you stop the pipeline and restart it, it will resume from the last successful stage.
+- Use the `--force` flag to ignore cache and re-run all stages.
+
+---
+
+## Evaluation & Quality
+
+A specialized dataset template and benchmark script are provided in `evaluation/` to track:
+- **ASR Fidelity:** Compare results against ground truth.
+- **Diarization Accuracy:** Check speaker switch points.
+- **Enhancement Safety:** Ensure LLM doesn't hallucinate or lose meaning.
+
+Run ASR benchmark:
+```bash
+uv run evaluation/run_asr_benchmark.py --dataset my_test_set.csv --backends nemo,chirp
+```
+
+---
+
+## Developer Guide
+
+### Running Tests
+```bash
+uv run pytest tests/
+```
+
+### Dagster Integration
+The pipeline is compatible with [Dagster](https://dagster.io/). You can load it as an asset:
+```bash
+uv run dagster dev -f app/dagster/definitions.py
 ```
