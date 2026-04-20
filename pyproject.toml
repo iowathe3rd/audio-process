@@ -45,6 +45,8 @@ dependencies = [
     "wrapt>=2.1.2",
     "pydantic>=2.12.5",
     "dagster>=1.13.1",
+    "dagster-webserver>=1.13.1",
+    "dagster-dg-cli>=1.13.1",
 ]
 
 [dependency-groups]

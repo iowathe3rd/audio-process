@@ -27,7 +27,7 @@ def _dominant_language(text: str) -> str:
             counts[label] += 1
     if sum(counts.values()) == 0:
         return "unknown"
-    return max(counts, key=counts.get)
+    return max(counts, key=counts.get)  # type: ignore[arg-type, return-value]
 
 
 def _build_chunk_quality_analytics(

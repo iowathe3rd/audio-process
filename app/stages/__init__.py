@@ -2,7 +2,6 @@
 
 from app.stages.asr_adapters import (
     FallbackASRAdapter,
-    GoogleChirpASRAdapter,
     NeMoASRAdapter,
 )
 from app.stages.chunk_quality import QualityAnalyzer
@@ -18,7 +17,6 @@ from app.stages.vertex_text import VertexTextProcessor
 
 __all__ = [
     "FallbackASRAdapter",
-    "GoogleChirpASRAdapter",
     "NeMoASRAdapter",
     "QualityAnalyzer",
     "SegmentCleaner",

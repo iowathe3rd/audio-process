@@ -81,16 +81,8 @@ class StageFactory:
         """Create ASR adapter with fallback support."""
         from app.stages.asr_adapters import make_asr_adapter
 
-        primary_model_name = (
-            config.chirp_model_name
-            if config.asr_provider == "chirp"
-            else config.nemo_model_name
-        )
-        fallback_model_name = (
-            config.nemo_model_name
-            if config.asr_fallback_provider == "nemo"
-            else config.chirp_model_name
-        )
+        primary_model_name = config.nemo_model_name
+        fallback_model_name = config.nemo_model_name
 
         return make_asr_adapter(
             provider_name=config.asr_provider,
@@ -99,10 +91,6 @@ class StageFactory:
             fallback_provider_name=config.asr_fallback_provider,
             fallback_model_name=fallback_model_name,
             google_api_key=config.google_api_key,
-            chirp_language_code=config.chirp_language_code,
-            chirp_project=config.chirp_project,
-            chirp_location=config.chirp_location,
-            chirp_recognizer=config.chirp_recognizer,
         )
 
     @staticmethod

@@ -27,13 +27,8 @@ class PipelineConfig(BaseModel):
     asr_orchestration_batch_size: int = 64
     asr_min_chunk_duration_sec: float = 0.25
     asr_pretokenize: bool = False
-    asr_provider: str = "chirp"
-    asr_fallback_provider: str = "nemo"
-    chirp_model_name: str = "chirp_2"
-    chirp_language_code: str = "ru-RU"
-    chirp_project: str = ""
-    chirp_location: str = "global"
-    chirp_recognizer: str = ""
+    asr_provider: str = "nemo"
+    asr_fallback_provider: str = "none"
     cleanup_min_duration_ms: int = 350
     cleanup_duplicate_window_ms: int = 280
     llm_window_max_chars: int = 1000

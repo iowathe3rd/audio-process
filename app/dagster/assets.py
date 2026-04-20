@@ -1,11 +1,10 @@
 from __future__ import annotations
-from dagster import asset, Config, ResourceParam
+from dagster import asset, Config
 from pathlib import Path
 from typing import Any
 
 from app.config import PipelineConfig
 from app.pipeline.orchestrator import PipelineOrchestrator
-from app.models import DiarizationSegment, ChunkRecord, TranscribedSegment, PipelineSegment
 
 class PipelineAssetConfig(Config):
     input_path: str = "audio.wav"
