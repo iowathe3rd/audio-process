@@ -1,12 +1,10 @@
 import logging
-import warnings
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 
-import torch
-
-from audio_pipeline.models import ChunkRecord, TranscribedSegment
+from app.models import ChunkRecord, TranscribedSegment
+from app.stages.asr_adapters import ASRAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -19,83 +17,14 @@ def _safe_percentile(values: list[float], ratio: float) -> float:
     return float(sorted_values[position])
 
 
-class NeMoTranscriber:
-    def __init__(self, model_name: str, device: str) -> None:
-        import nemo.collections.asr as nemo_asr
-
-        logger.info("Loading NeMo model: %s", model_name)
-        model_obj = nemo_asr.models.ASRModel.from_pretrained(model_name)
-        self.model: Any = model_obj
-
-        if hasattr(self.model, "to"):
-            self.model = self.model.to(torch.device(device))
-
-    def transcribe_batch(
-        self,
-        audio_paths: list[Path],
-        batch_size: int,
-        pretokenize: bool,
-    ) -> list[str]:
-        if not audio_paths:
-            return []
-
-        # NeMo can emit this deprecation warning repeatedly for each chunk on current torch builds.
-        warnings.filterwarnings(
-            "ignore",
-            message=r"An output with one or more elements was resized since it had shape \[\]",
-            category=UserWarning,
-        )
-        warnings.filterwarnings(
-            "ignore",
-            message=r"'pin_memory' argument is set as true but not supported on MPS now",
-            category=UserWarning,
-        )
-
-        audio_list = [str(path) for path in audio_paths]
-
-        transcribe_kwargs: dict[str, Any] = {
-            "batch_size": batch_size,
-            "use_lhotse": False,
-            "num_workers": 0,
-            "verbose": False,
-            "override_config": {"pretokenize": bool(pretokenize)},
-        }
-
-        try:
-            output = self.model.transcribe(audio_list, **transcribe_kwargs)
-        except TypeError:
-            output = self.model.transcribe(audio_list)
-        except Exception:  # noqa: BLE001
-            # Some NeMo versions reject override_config shape. Fall back to the same fast path without it.
-            transcribe_kwargs.pop("override_config", None)
-            output = self.model.transcribe(audio_list, **transcribe_kwargs)
-
-        if not isinstance(output, list):
-            output = [output]
-
-        texts: list[str] = []
-        for item in output:
-            if hasattr(item, "text"):
-                texts.append(str(item.text).strip())
-            else:
-                texts.append(str(item).strip())
-
-        if len(texts) < len(audio_paths):
-            texts.extend([""] * (len(audio_paths) - len(texts)))
-
-        return texts[: len(audio_paths)]
-
-
 def transcribe_chunks(
     chunks: list[ChunkRecord],
-    model_name: str,
-    device: str,
+    adapter: ASRAdapter,
     batch_size: int = 16,
     orchestration_batch_size: int = 64,
     min_chunk_duration_sec: float = 0.2,
     pretokenize: bool = False,
 ) -> tuple[list[TranscribedSegment], dict[str, Any]]:
-    transcriber = NeMoTranscriber(model_name=model_name, device=device)
     text_by_index: dict[int, str] = {}
     status_by_index: dict[int, str] = {}
     effective_chunks: list[ChunkRecord] = []
@@ -153,6 +82,11 @@ def transcribe_chunks(
             "orchestration_batch_latency_ms_p50": 0.0,
             "orchestration_batch_latency_ms_p90": 0.0,
             "asr_throughput_audio_sec_per_wall_sec": 0.0,
+            "asr_provider_requested": str(getattr(adapter, "requested_provider_name", adapter.provider_name)),
+            "asr_provider_effective": str(getattr(adapter, "provider_name", "unknown")),
+            "asr_model_effective": str(getattr(adapter, "model_name", "unknown")),
+            "asr_fallback_used": bool(getattr(adapter, "fallback_used", False)),
+            "asr_fallback_reason": str(getattr(adapter, "fallback_reason", "")),
         }
         return transcripts, report
 
@@ -170,7 +104,7 @@ def transcribe_chunks(
         batch_failed = False
         call_start = perf_counter()
         try:
-            batch_texts = transcriber.transcribe_batch(
+            batch_texts = adapter.transcribe_batch(
                 batch_paths,
                 batch_size=safe_batch_size,
                 pretokenize=pretokenize,
@@ -245,5 +179,10 @@ def transcribe_chunks(
         "orchestration_batch_latency_ms_p50": _safe_percentile(orchestration_batch_latencies_ms, 0.50),
         "orchestration_batch_latency_ms_p90": _safe_percentile(orchestration_batch_latencies_ms, 0.90),
         "asr_throughput_audio_sec_per_wall_sec": eligible_audio_sec / max(1e-6, asr_latency_total_ms / 1000.0),
+        "asr_provider_requested": str(getattr(adapter, "requested_provider_name", adapter.provider_name)),
+        "asr_provider_effective": str(getattr(adapter, "provider_name", "unknown")),
+        "asr_model_effective": str(getattr(adapter, "model_name", "unknown")),
+        "asr_fallback_used": bool(getattr(adapter, "fallback_used", False)),
+        "asr_fallback_reason": str(getattr(adapter, "fallback_reason", "")),
     }
     return transcripts, report

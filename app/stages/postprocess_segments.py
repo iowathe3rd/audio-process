@@ -1,4 +1,5 @@
-from audio_pipeline.models import DiarizationSegment
+from app.models import DiarizationSegment
+from app.domain.contracts import SegmentPostprocessor
 from typing import Any
 
 
@@ -23,7 +24,7 @@ def _entry(segment: DiarizationSegment, source_indices: list[int] | None = None)
     }
 
 
-def normalize_speaker_segments(
+def _normalize_speaker_segments(
     segments: list[DiarizationSegment],
     audio_duration_sec: float,
     min_segment_duration_ms: int,
@@ -263,3 +264,25 @@ def normalize_speaker_segments(
         "absorb_short_gap_ms": int(absorb_short_gap_ms),
     }
     return output, report, merged_groups
+
+
+class SegmentNormalizer(SegmentPostprocessor):
+    """Post-processes diarization segments for ASR readiness.
+
+    Normalizes, merges, and pads segments for optimal transcription.
+    """
+
+    def postprocess(
+        self,
+        segments: list[DiarizationSegment],
+        audio_duration_sec: float,
+        min_duration_ms: int,
+        merge_gap_ms: int,
+        padding_ms: int,
+        absorb_short_gap_ms: int,
+    ) -> tuple[list[DiarizationSegment], dict[str, Any], list[Any]]:
+        """Normalize, merge, and pad diarization segments."""
+        return _normalize_speaker_segments(
+            segments, audio_duration_sec, min_duration_ms,
+            merge_gap_ms, padding_ms, absorb_short_gap_ms
+        )

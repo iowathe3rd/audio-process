@@ -1,6 +1,7 @@
+from __future__ import annotations
 import unittest
 
-from audio_pipeline.stages.text_metrics import (
+from app.stages.text_metrics import (
     deterministic_light_enhance,
     has_word_sequence_drift,
     language_switching_ratio,

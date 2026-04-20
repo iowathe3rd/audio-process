@@ -1,32 +1,15 @@
 import importlib
 import logging
 from pathlib import Path
-from typing import Protocol
+
+from app.domain.contracts import ASRAdapter
 
 logger = logging.getLogger(__name__)
 
 
-class ASRAdapter(Protocol):
-    @property
-    def provider_name(self) -> str:
-        ...
-
-    @property
-    def model_name(self) -> str:
-        ...
-
-    def transcribe_batch(
-        self,
-        audio_paths: list[Path],
-        batch_size: int,
-        pretokenize: bool,
-    ) -> list[str]:
-        ...
-
-
-class NeMoASRAdapter:
+class NeMoASRAdapter(ASRAdapter):
     def __init__(self, model_name: str, device: str) -> None:
-        from audio_pipeline.stages.asr_nemo import NeMoTranscriber
+        from app.stages.asr_nemo import NeMoTranscriber
 
         self._provider_name = "nemo"
         self._model_name = str(model_name)
@@ -53,7 +36,7 @@ class NeMoASRAdapter:
         )
 
 
-class GoogleChirpASRAdapter:
+class GoogleChirpASRAdapter(ASRAdapter):
     def __init__(
         self,
         model_name: str,
@@ -157,7 +140,7 @@ class GoogleChirpASRAdapter:
         return texts[: len(audio_paths)]
 
 
-class FallbackASRAdapter:
+class FallbackASRAdapter(ASRAdapter):
     def __init__(
         self,
         primary: ASRAdapter,
@@ -210,18 +193,16 @@ def build_single_asr_adapter(
     provider_name: str,
     model_name: str,
     device: str,
-    google_api_key: str,
-    chirp_language_code: str,
-    chirp_project: str,
-    chirp_location: str,
-    chirp_recognizer: str,
+    google_api_key: str = "",
+    chirp_language_code: str = "",
+    chirp_project: str = "",
+    chirp_location: str = "global",
+    chirp_recognizer: str = "",
 ) -> ASRAdapter:
-    safe_provider = str(provider_name or "").strip().lower()
-
-    if safe_provider == "nemo":
+    """Instantiate a single ASR provider adapter."""
+    if provider_name == "nemo":
         return NeMoASRAdapter(model_name=model_name, device=device)
-
-    if safe_provider == "chirp":
+    if provider_name == "chirp":
         return GoogleChirpASRAdapter(
             model_name=model_name,
             api_key=google_api_key,
@@ -230,29 +211,38 @@ def build_single_asr_adapter(
             location=chirp_location,
             recognizer=chirp_recognizer,
         )
-
-    raise ValueError(f"Unsupported ASR provider: {provider_name}")
+    raise ValueError(f"Unknown ASR provider: {provider_name}")
 
 
 def make_asr_adapter(
     provider_name: str,
     model_name: str,
     device: str,
-    fallback_provider_name: str,
-    fallback_model_name: str,
-    google_api_key: str,
-    chirp_language_code: str,
-    chirp_project: str,
-    chirp_location: str,
-    chirp_recognizer: str,
-) -> FallbackASRAdapter:
-    safe_provider = str(provider_name or "").strip().lower()
-    safe_fallback = str(fallback_provider_name or "").strip().lower()
+    fallback_provider_name: str = "none",
+    fallback_model_name: str = "",
+    google_api_key: str = "",
+    chirp_language_code: str = "",
+    chirp_project: str = "",
+    chirp_location: str = "global",
+    chirp_recognizer: str = "",
+) -> ASRAdapter:
+    """Create a primary ASR adapter with optional fallback."""
+    primary = build_single_asr_adapter(
+        provider_name=provider_name,
+        model_name=model_name,
+        device=device,
+        google_api_key=google_api_key,
+        chirp_language_code=chirp_language_code,
+        chirp_project=chirp_project,
+        chirp_location=chirp_location,
+        chirp_recognizer=chirp_recognizer,
+    )
 
-    try:
-        primary = build_single_asr_adapter(
-            provider_name=safe_provider,
-            model_name=model_name,
+    fallback: ASRAdapter | None = None
+    if fallback_provider_name != "none":
+        fallback = build_single_asr_adapter(
+            provider_name=fallback_provider_name,
+            model_name=fallback_model_name,
             device=device,
             google_api_key=google_api_key,
             chirp_language_code=chirp_language_code,
@@ -261,60 +251,8 @@ def make_asr_adapter(
             chirp_recognizer=chirp_recognizer,
         )
 
-        fallback: ASRAdapter | None = None
-        if safe_fallback and safe_fallback not in {"none", safe_provider}:
-            try:
-                fallback = build_single_asr_adapter(
-                    provider_name=safe_fallback,
-                    model_name=fallback_model_name,
-                    device=device,
-                    google_api_key=google_api_key,
-                    chirp_language_code=chirp_language_code,
-                    chirp_project=chirp_project,
-                    chirp_location=chirp_location,
-                    chirp_recognizer=chirp_recognizer,
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Fallback ASR provider '%s' initialization failed: %s. "
-                    "Continuing without fallback.",
-                    safe_fallback,
-                    exc,
-                )
-
-        return FallbackASRAdapter(
-            primary=primary,
-            fallback=fallback,
-            requested_provider_name=str(provider_name),
-        )
-    except Exception as exc:  # noqa: BLE001
-        fallback: ASRAdapter | None = None
-        if safe_fallback and safe_fallback not in {"none", safe_provider}:
-            fallback = build_single_asr_adapter(
-                provider_name=safe_fallback,
-                model_name=fallback_model_name,
-                device=device,
-                google_api_key=google_api_key,
-                chirp_language_code=chirp_language_code,
-                chirp_project=chirp_project,
-                chirp_location=chirp_location,
-                chirp_recognizer=chirp_recognizer,
-            )
-
-        if fallback is None:
-            raise
-
-        logger.warning(
-            "Primary ASR provider '%s' initialization failed, using fallback '%s': %s",
-            safe_provider,
-            fallback.provider_name,
-            exc,
-        )
-        adapter = FallbackASRAdapter(
-            primary=fallback,
-            fallback=None,
-            requested_provider_name=str(provider_name),
-        )
-        adapter.fallback_used = True
-        adapter.fallback_reason = f"primary_init_failed: {type(exc).__name__}: {exc}"
-        return adapter
+    return FallbackASRAdapter(
+        primary=primary,
+        fallback=fallback,
+        requested_provider_name=provider_name,
+    )

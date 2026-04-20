@@ -1,21 +1,29 @@
+from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from audio_pipeline.models import ChunkRecord
-from audio_pipeline.stages.asr_transcribe import transcribe_chunks
+from app.models import ChunkRecord
+from app.stages.asr_transcribe import transcribe_chunks
+from app.stages.asr_adapters import ASRAdapter
 
 
-class _StubAdapter:
+class _StubAdapter(ASRAdapter):
     def __init__(self) -> None:
         self.requested_provider_name = "chirp"
-        self.provider_name = "nemo"
-        self.model_name = "nvidia/model"
+        self._provider_name = "nemo"
+        self._model_name = "nvidia/model"
         self.fallback_used = True
         self.fallback_reason = "primary_init_failed"
 
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
     def transcribe_batch(self, audio_paths: list[Path], batch_size: int, pretokenize: bool) -> list[str]:
-        del batch_size
-        del pretokenize
         return ["hello" for _ in audio_paths]
 
 

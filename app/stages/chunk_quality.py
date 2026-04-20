@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from audio_pipeline.models import ChunkRecord, PipelineSegment, TranscribedSegment
-from audio_pipeline.stages.text_metrics import has_word_sequence_drift, token_language
+from app.models import ChunkRecord, PipelineSegment, TranscribedSegment
+from app.domain.contracts import ChunkQualityAnalyzer
+from app.stages.text_metrics import has_word_sequence_drift, token_language
 
 
 def _duration(start: float, end: float) -> float:
@@ -29,7 +30,7 @@ def _dominant_language(text: str) -> str:
     return max(counts, key=counts.get)
 
 
-def build_chunk_quality_analytics(
+def _build_chunk_quality_analytics(
     chunks: list[ChunkRecord],
     transcripts: list[TranscribedSegment],
     final_segments: list[PipelineSegment],
@@ -141,3 +142,27 @@ def build_chunk_quality_analytics(
         "low_confidence_max_cps": float(low_confidence_max_cps),
     }
     return rows, summary
+
+
+class QualityAnalyzer(ChunkQualityAnalyzer):
+    """Analyzes quality of chunks and transcriptions."""
+
+    def __init__(self, low_confidence_min_cps: float, low_confidence_max_cps: float) -> None:
+        self._low_confidence_min_cps = low_confidence_min_cps
+        self._low_confidence_max_cps = low_confidence_max_cps
+
+    def analyze(
+        self,
+        chunks: list[ChunkRecord],
+        transcripts: list[TranscribedSegment],
+        final_segments: list[PipelineSegment],
+        low_confidence_min_cps: float | None = None,
+        low_confidence_max_cps: float | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Build chunk quality analytics."""
+        effective_min = low_confidence_min_cps if low_confidence_min_cps is not None else self._low_confidence_min_cps
+        effective_max = low_confidence_max_cps if low_confidence_max_cps is not None else self._low_confidence_max_cps
+
+        return _build_chunk_quality_analytics(
+            chunks, transcripts, final_segments, effective_min, effective_max
+        )

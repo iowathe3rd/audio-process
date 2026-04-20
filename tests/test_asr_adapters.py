@@ -1,10 +1,11 @@
+from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from audio_pipeline.stages.asr_adapters import FallbackASRAdapter, build_single_asr_adapter
+from app.stages.asr_adapters import FallbackASRAdapter, build_single_asr_adapter, ASRAdapter
 
 
-class _OkAdapter:
+class _OkAdapter(ASRAdapter):
     def __init__(self, provider_name: str, model_name: str, text: str) -> None:
         self._provider_name = provider_name
         self._model_name = model_name
@@ -19,12 +20,10 @@ class _OkAdapter:
         return self._model_name
 
     def transcribe_batch(self, audio_paths: list[Path], batch_size: int, pretokenize: bool) -> list[str]:
-        del batch_size
-        del pretokenize
         return [self._text for _ in audio_paths]
 
 
-class _FailAdapter:
+class _FailAdapter(ASRAdapter):
     def __init__(self, provider_name: str, model_name: str) -> None:
         self._provider_name = provider_name
         self._model_name = model_name
@@ -38,9 +37,6 @@ class _FailAdapter:
         return self._model_name
 
     def transcribe_batch(self, audio_paths: list[Path], batch_size: int, pretokenize: bool) -> list[str]:
-        del audio_paths
-        del batch_size
-        del pretokenize
         raise RuntimeError("primary failed")
 
 

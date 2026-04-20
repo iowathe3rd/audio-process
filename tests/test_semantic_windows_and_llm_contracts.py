@@ -1,12 +1,14 @@
+from __future__ import annotations
 import unittest
+from typing import Any
 
-from audio_pipeline.models import PipelineSegment
-from audio_pipeline.stages.semantic_windows import build_semantic_windows
-from audio_pipeline.stages.vertex_text import enhance_segments
+from app.models import PipelineSegment
+from app.stages.semantic_windows import SemanticWindowGrouper
+from app.stages.vertex_text import VertexTextProcessor
 
 
 class _DriftProcessor:
-    def enhance_batch(self, texts: list[str]):
+    def enhance_batch(self, texts: list[str]) -> tuple[list[str], dict[str, Any]]:
         # Intentional meaning shift to verify drift guard fallback.
         return ["ну нашу крадут это же противозаконно" for _ in texts], {
             "llm_calls_total": 1,
@@ -16,6 +18,9 @@ class _DriftProcessor:
             "windows_failed": 0,
             "fallback_segments": 0,
         }
+
+    def anonymize_batch(self, texts: list[str]) -> tuple[list[str], dict[str, Any]]:
+        return texts, {}
 
 
 class SemanticWindowsAndContractsTests(unittest.TestCase):
@@ -63,7 +68,13 @@ class SemanticWindowsAndContractsTests(unittest.TestCase):
             ),
         ]
 
-        windows, report = build_semantic_windows(
+        grouper = SemanticWindowGrouper(
+            max_chars=140,
+            max_duration_sec=12.0,
+            max_gap_sec=1.0,
+            max_speaker_switches=3,
+        )
+        windows, report = grouper.build_windows(
             segments=segments,
             max_chars=140,
             max_duration_sec=12.0,
@@ -99,10 +110,24 @@ class SemanticWindowsAndContractsTests(unittest.TestCase):
             }
         ]
 
-        enhanced, report = enhance_segments(
+        # Use a mock-like processor
+        class MockVertexProcessor(VertexTextProcessor):
+            def __init__(self):
+                self.enabled = True
+                self.client = True
+                self.strict = True
+            
+            def enhance_batch(self, texts):
+                return _DriftProcessor().enhance_batch(texts)
+
+        processor = MockVertexProcessor()
+
+        enhanced, report = processor.enhance(
             segments=segments,
             semantic_windows=windows,
-            processor=_DriftProcessor(),
+            mode="llm",
+            low_confidence_positions=None,
+            skip_low_confidence=False
         )
 
         self.assertEqual(enhanced[0].enhanced_text, "ну нашу курят это же противозаконно")

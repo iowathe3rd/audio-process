@@ -5,8 +5,9 @@ from typing import Any
 
 from google import genai
 
-from audio_pipeline.models import PipelineSegment
-from audio_pipeline.stages.text_metrics import (
+from app.models import PipelineSegment
+from app.domain.contracts import TextProcessor
+from app.stages.text_metrics import (
     deterministic_light_enhance,
     has_word_sequence_drift,
 )
@@ -67,7 +68,7 @@ def _contains_pii_candidate(text: str) -> bool:
     return False
 
 
-class VertexTextProcessor:
+class VertexTextProcessor(TextProcessor):
     def __init__(
         self,
         api_key: str,
@@ -300,8 +301,37 @@ class VertexTextProcessor:
             "fallback_segments": fallback_segments,
         }
 
+    # TextProcessor interface implementation
 
-def anonymize_segments(
+    def anonymize(
+        self,
+        segments: list[PipelineSegment],
+        semantic_windows: list[dict[str, Any]],
+    ) -> tuple[list[PipelineSegment], dict[str, Any]]:
+        """Anonymize PII in segments using LLM."""
+        return _anonymize_segments_impl(segments, semantic_windows, self)
+
+    def enhance(
+        self,
+        segments: list[PipelineSegment],
+        semantic_windows: list[dict[str, Any]] | None,
+        mode: str,
+        low_confidence_positions: set[int] | None,
+        skip_low_confidence: bool,
+    ) -> tuple[list[PipelineSegment], dict[str, Any]]:
+        """Enhance text quality."""
+        safe_windows = semantic_windows or []
+
+        if mode == "deterministic":
+            return _enhance_segments_deterministic_impl(segments)
+        else:
+            return _enhance_segments_llm_impl(
+                segments, safe_windows, self,
+                low_confidence_positions, skip_low_confidence
+            )
+
+
+def _anonymize_segments_impl(
     segments: list[PipelineSegment],
     semantic_windows: list[dict[str, Any]],
     processor: Any,
@@ -377,7 +407,7 @@ def anonymize_segments(
     return anonymized, report
 
 
-def enhance_segments(
+def _enhance_segments_llm_impl(
     segments: list[PipelineSegment],
     semantic_windows: list[dict[str, Any]],
     processor: Any,
@@ -469,7 +499,7 @@ def enhance_segments(
     return enhanced, report
 
 
-def enhance_segments_deterministic(
+def _enhance_segments_deterministic_impl(
     segments: list[PipelineSegment],
 ) -> tuple[list[PipelineSegment], dict[str, Any]]:
     enhanced: list[PipelineSegment] = []

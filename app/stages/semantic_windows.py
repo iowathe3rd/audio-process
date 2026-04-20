@@ -3,7 +3,8 @@ from __future__ import annotations
 from statistics import median
 from typing import Any
 
-from audio_pipeline.models import PipelineSegment
+from app.models import PipelineSegment
+from app.domain.contracts import SemanticWindowBuilder
 
 
 def _window_duration(items: list[tuple[int, PipelineSegment]]) -> float:
@@ -37,7 +38,7 @@ def _build_window(
     }
 
 
-def build_semantic_windows(
+def _build_semantic_windows(
     segments: list[PipelineSegment],
     max_chars: int,
     max_duration_sec: float,
@@ -138,3 +139,38 @@ def build_semantic_windows(
         "max_speaker_switches": safe_max_switches,
     }
     return windows, report
+
+
+class SemanticWindowGrouper(SemanticWindowBuilder):
+    """Groups segments into semantic windows for LLM processing."""
+
+    def __init__(
+        self,
+        max_chars: int,
+        max_duration_sec: float,
+        max_gap_sec: float,
+        max_speaker_switches: int,
+    ) -> None:
+        self._max_chars = max_chars
+        self._max_duration_sec = max_duration_sec
+        self._max_gap_sec = max_gap_sec
+        self._max_speaker_switches = max_speaker_switches
+
+    def build_windows(
+        self,
+        segments: list[PipelineSegment],
+        max_chars: int | None = None,
+        max_duration_sec: float | None = None,
+        max_gap_sec: float | None = None,
+        max_speaker_switches: int | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, int | float]]:
+        """Group segments into semantic windows."""
+        effective_chars = max_chars if max_chars is not None else self._max_chars
+        effective_duration = max_duration_sec if max_duration_sec is not None else self._max_duration_sec
+        effective_gap = max_gap_sec if max_gap_sec is not None else self._max_gap_sec
+        effective_switches = max_speaker_switches if max_speaker_switches is not None else self._max_speaker_switches
+
+        return _build_semantic_windows(
+            segments, effective_chars, effective_duration,
+            effective_gap, effective_switches
+        )
