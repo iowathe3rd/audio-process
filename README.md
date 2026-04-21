@@ -4,13 +4,13 @@
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A modular, production-ready pipeline for end-to-end audio processing. It handles everything from raw audio normalization to diarization, ASR, and LLM-powered text enhancement with robust caching and restartability.
+A modular, production-ready pipeline for end-to-end audio processing. It handles everything from raw audio normalization to diarization, ASR, and LLM-powered text enhancement with explicit stage contracts, robust caching, and Dagster asset orchestration.
 
 ---
 
 ## Overview
 
-This pipeline transforms raw audio calls into structured, anonymized, and enhanced transcripts. It is designed for high reliability and follows a sequential ETL pattern.
+This pipeline transforms raw audio calls into structured, anonymized, and enhanced transcripts. It is designed for high reliability and follows a staged ETL pattern. CLI execution and Dagster assets both call the same OOP stage classes.
 
 ### Pipeline Stages
 
@@ -19,7 +19,7 @@ This pipeline transforms raw audio calls into structured, anonymized, and enhanc
 3.  **Diarization:** Speaker separation using `pyannote/speaker-diarization-3.1`.
 4.  **Segment Post-processing:** Merges small segments, adds padding, and absorbs short gaps for better ASR context.
 5.  **Segmentation:** Chops the enhanced audio into speaker-specific chunks.
-6.  **ASR (Automatic Speech Recognition):** Supports **Google Chirp** (primary) with automatic fallback to **NVIDIA NeMo** (FastConformer).
+6.  **ASR (Automatic Speech Recognition):** Uses an adapter contract. The bundled provider is **NVIDIA NeMo** (FastConformer) behind the optional `asr-nemo` extra.
 7.  **Merge & Cleanup:** Recombines ASR results with diarization metadata and removes low-quality/duplicate segments.
 8.  **Semantic Windowing:** Groups segments into LLM-ready context windows (~1000 chars) while respecting speaker switches.
 9.  **Anonymization:** Detects and masks PII (Names, Phones, Emails) using Vertex AI / Google GenAI.
@@ -41,6 +41,11 @@ cd audio-process
 uv sync
 ```
 
+Install the optional NeMo ASR provider when `asr_provider = "nemo"`:
+```bash
+uv sync --extra asr-nemo
+```
+
 **External Dependencies:**
 - `ffmpeg` or `libsndfile` (for `torchaudio` and `soundfile` backends).
 
@@ -55,8 +60,8 @@ Required for `pyannote` models.
 - Set `HF_TOKEN` environment variable.
 - Ensure you have accepted the user conditions for `pyannote/speaker-diarization-3.1` and `pyannote/segmentation-3.0` on Hugging Face.
 
-### 2. Google Cloud / GenAI (ASR & Text Processing)
-The pipeline supports two ways to authenticate for Google services (Chirp ASR, Gemini LLM):
+### 2. Google Cloud / GenAI (Text Processing)
+The pipeline supports two ways to authenticate for Gemini text anonymization and enhancement:
 
 **Option A: API Key (Simplest)**
 - Set `GOOGLE_API_KEY` in your `.env` file or environment.
@@ -83,9 +88,9 @@ While the current `main.py` is minimal, you can configure the pipeline via envir
 | | `enable_audio_enhancement` | `True` | Toggle spectral enhancement |
 | **Diarization** | `segment_min_duration_ms` | `450` | Min duration of a speaker segment |
 | | `segment_merge_gap_ms` | `300` | Gap threshold for merging same-speaker segments |
-| **ASR** | `asr_provider` | `chirp` | Primary ASR (`chirp` or `nemo`) |
-| | `asr_fallback_provider` | `nemo` | Fallback if primary fails |
-| | `chirp_language_code` | `ru-RU` | Language for recognition |
+| **ASR** | `asr_provider` | `nemo` | Primary ASR provider |
+| | `asr_fallback_provider` | `none` | Optional fallback provider |
+| | `nemo_model_name` | `nvidia/stt_kk_ru_fastconformer_hybrid_large` | NeMo ASR model |
 | **LLM** | `text_enhancement_mode` | `deterministic` | `deterministic` or `llm` |
 | | `llm_window_max_chars` | `1000` | Target size for LLM context windows |
 
@@ -162,8 +167,48 @@ uv run evaluation/run_asr_benchmark.py --dataset my_test_set.csv --backends nemo
 uv run pytest tests/
 ```
 
+### Architecture
+
+Pipeline implementations live under `app/pipeline/stages/` by domain:
+- `audio`: normalization and enhancement.
+- `diarization`: speaker diarization and post-processing.
+- `chunking`: WAV chunk manifest generation.
+- `asr`: provider adapters and transcription orchestration.
+- `transcript`: merge, cleanup, and semantic windows.
+- `text`: Gemini/Vertex text processing and text metrics.
+- `quality`: chunk/transcript quality analytics.
+
+`app/pipeline/stage_graph.py` defines the shared contracts:
+- `PipelineStage` for executable stage classes.
+- `StageContext` for config, artifacts, logger, and factory access.
+- `StageResult` for typed outputs, artifact paths, metrics, and cache status.
+
+Legacy `app.stages.*` imports are kept as compatibility wrappers. New code should import from `app.pipeline.stages.*`.
+
 ### Dagster Integration
-The pipeline is compatible with [Dagster](https://dagster.io/). You can load it as an asset:
+The pipeline is compatible with [Dagster](https://dagster.io/). Each pipeline stage is exposed as a separate asset with artifact and metric metadata:
 ```bash
 uv run dagster dev -f app/dagster/definitions.py
+```
+
+Dagster asset config is provided through the `pipeline_settings` resource. Secrets remain environment-based (`HF_TOKEN`, `GOOGLE_API_KEY`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`).
+
+### Dependency Audit
+```bash
+uv pip check
+uv run python -m pytest -q
+uv run python - <<'PY'
+import ast, importlib.util, pathlib
+mods = set()
+for root in [pathlib.Path("app"), pathlib.Path("tests")]:
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                mods.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                mods.add(node.module.split(".")[0])
+for name in sorted(mods - {"__future__", "app", "tests"}):
+    print(f"{name}: {'OK' if importlib.util.find_spec(name) else 'MISSING'}")
+PY
 ```

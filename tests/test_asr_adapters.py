@@ -73,6 +73,15 @@ class AsrAdapterTests(unittest.TestCase):
                 chirp_recognizer="",
             )
 
+    def test_nemo_provider_reports_missing_optional_dependency(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, r"Install audio-process\[asr-nemo\]"):
+            build_single_asr_adapter(
+                provider_name="nemo",
+                model_name="x",
+                device="cpu",
+                google_api_key="",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
