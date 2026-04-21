@@ -26,14 +26,17 @@ class ArtifactManager:
             return True
 
         if not self.state_path.exists():
+            self._invalidate_cache = True
             return True
 
         try:
             previous_state = read_json(self.state_path)
             if previous_state != current_fingerprint:
                 logger.info("Configuration/input changed, invalidating cache")
+                self._invalidate_cache = True
                 return True
         except Exception:
+            self._invalidate_cache = True
             return True
 
         return False

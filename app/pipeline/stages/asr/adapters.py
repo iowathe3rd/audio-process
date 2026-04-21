@@ -1,3 +1,4 @@
+import importlib.util
 import logging
 from pathlib import Path
 
@@ -89,9 +90,15 @@ def build_single_asr_adapter(
     model_name: str,
     device: str,
     google_api_key: str = "",
+    **_provider_options: str,
 ) -> ASRAdapter:
     """Instantiate a single ASR provider adapter."""
     if provider_name == "nemo":
+        if importlib.util.find_spec("nemo") is None:
+            raise RuntimeError(
+                "NeMo ASR provider is not installed. "
+                "Install audio-process[asr-nemo] or choose another ASR provider."
+            )
         return NeMoASRAdapter(model_name=model_name, device=device)
     raise ValueError(f"Unknown ASR provider: {provider_name}")
 
