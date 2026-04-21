@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import dagster as dg
+from dagster import AssetExecutionContext
 
 from app.config import PipelineConfig
 from app.pipeline.artifact_manager import ArtifactManager
@@ -62,7 +63,7 @@ def _run_stage(
     name: str,
     config: PipelineConfig,
     inputs: dict[str, Any],
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
 ) -> dict[str, Any]:
     stage_context = _context(config, context.log)
     result = STAGES_BY_NAME[name].run(stage_context, inputs)
@@ -79,7 +80,7 @@ def pipeline_config(pipeline_settings: PipelineConfigResource) -> PipelineConfig
 
 @dg.asset
 def normalized_audio(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
 ) -> dict[str, Any]:
     return _run_stage("normalized_audio", pipeline_config, {}, context)
@@ -87,7 +88,7 @@ def normalized_audio(
 
 @dg.asset
 def enhanced_audio(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     normalized_audio: dict[str, Any],
 ) -> dict[str, Any]:
@@ -96,7 +97,7 @@ def enhanced_audio(
 
 @dg.asset
 def diarization(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     enhanced_audio: dict[str, Any],
 ) -> dict[str, Any]:
@@ -105,7 +106,7 @@ def diarization(
 
 @dg.asset
 def postprocessed_segments(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     normalized_audio: dict[str, Any],
     diarization: dict[str, Any],
@@ -120,7 +121,7 @@ def postprocessed_segments(
 
 @dg.asset
 def audio_chunks(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     enhanced_audio: dict[str, Any],
     postprocessed_segments: dict[str, Any],
@@ -135,7 +136,7 @@ def audio_chunks(
 
 @dg.asset
 def asr_transcripts(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     audio_chunks: dict[str, Any],
 ) -> dict[str, Any]:
@@ -144,7 +145,7 @@ def asr_transcripts(
 
 @dg.asset
 def merged_transcript(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     audio_chunks: dict[str, Any],
     asr_transcripts: dict[str, Any],
@@ -159,7 +160,7 @@ def merged_transcript(
 
 @dg.asset
 def cleaned_transcript(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     merged_transcript: dict[str, Any],
 ) -> dict[str, Any]:
@@ -168,7 +169,7 @@ def cleaned_transcript(
 
 @dg.asset
 def semantic_windows(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     cleaned_transcript: dict[str, Any],
 ) -> dict[str, Any]:
@@ -177,7 +178,7 @@ def semantic_windows(
 
 @dg.asset
 def anonymized_transcript(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     cleaned_transcript: dict[str, Any],
     semantic_windows: dict[str, Any],
@@ -192,7 +193,7 @@ def anonymized_transcript(
 
 @dg.asset
 def enhanced_transcript(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     anonymized_transcript: dict[str, Any],
     semantic_windows: dict[str, Any],
@@ -207,7 +208,7 @@ def enhanced_transcript(
 
 @dg.asset
 def quality_report(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     audio_chunks: dict[str, Any],
     asr_transcripts: dict[str, Any],
@@ -223,7 +224,7 @@ def quality_report(
 
 @dg.asset
 def processed_audio_result(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
     pipeline_config: PipelineConfig,
     normalized_audio: dict[str, Any],
     diarization: dict[str, Any],
@@ -249,4 +250,3 @@ def processed_audio_result(
         ),
         context,
     )["result"]
-
