@@ -46,6 +46,8 @@ Install the optional NeMo ASR provider when `asr_provider = "nemo"`:
 uv sync --extra asr-nemo
 ```
 
+This extra installs the `nemo-toolkit-asr` speech collection package and the ASR-specific alignment dependency set needed on macOS and Linux.
+
 **External Dependencies:**
 - `ffmpeg` or `libsndfile` (for `torchaudio` and `soundfile` backends).
 

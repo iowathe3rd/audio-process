@@ -1,5 +1,6 @@
 from __future__ import annotations
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from app.pipeline.stages.asr.adapters import FallbackASRAdapter, build_single_asr_adapter, ASRAdapter
@@ -73,14 +74,17 @@ class AsrAdapterTests(unittest.TestCase):
                 chirp_recognizer="",
             )
 
-    def test_nemo_provider_reports_missing_optional_dependency(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, r"Install audio-process\[asr-nemo\]"):
-            build_single_asr_adapter(
+    def test_nemo_provider_builds_adapter(self) -> None:
+        with mock.patch("app.pipeline.stages.asr.adapters.NeMoASRAdapter") as nemo_cls:
+            adapter = build_single_asr_adapter(
                 provider_name="nemo",
                 model_name="x",
                 device="cpu",
                 google_api_key="",
             )
+
+        nemo_cls.assert_called_once_with(model_name="x", device="cpu")
+        self.assertIs(adapter, nemo_cls.return_value)
 
 
 if __name__ == "__main__":

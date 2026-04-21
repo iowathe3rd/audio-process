@@ -210,7 +210,7 @@ dependencies = [
 
 [package.optional-dependencies]
 asr-nemo = [
-    { name = "nemo-toolkit", extra = ["asr"] },
+    { name = "nemo-toolkit-asr", extra = ["asr"] },
 ]
 
 [package.dev-dependencies]
@@ -224,7 +224,7 @@ requires-dist = [
     { name = "dagster-dg-cli", specifier = ">=1.13.1" },
     { name = "dagster-webserver", specifier = ">=1.13.1" },
     { name = "google-genai", specifier = ">=1.73.1" },
-    { name = "nemo-toolkit", extras = ["asr"], marker = "extra == 'asr-nemo'", specifier = ">=2.5.0" },
+    { name = "nemo-toolkit-asr", extras = ["asr"], marker = "extra == 'asr-nemo'", specifier = ">=2.8.0rc2" },
     { name = "pyannote-audio", specifier = ">=4.0.4" },
     { name = "pydantic", specifier = ">=2.13.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
@@ -1574,9 +1574,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/80/45/e3e542ffa8970ebd7
 
 [[package]]
 name = "kaldialign"
-version = "0.8.0"
+version = "0.9.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8a/89/90bca03aa33a219ebf306dd6ff70579aa965e1a3a200f8cf455bf7f6dee9/kaldialign-0.8.0.tar.gz", hash = "sha256:dd836b0f0a63cf38109df9cb08f0f0daba45d9f2685fb22e6565d63556c55ddb", size = 25830, upload-time = "2024-03-04T16:52:24.244Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/6a/564327f1306b5e29f23a5cfd2600c7c5d2e767bdecf1426357216992a68f/kaldialign-0.9.3-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:a05dd8b26fb8261a2d717993fb4fbdf309863c51035e90bc1ceac15b3e44ad7a", size = 111397, upload-time = "2026-01-05T14:58:40.851Z" },
+    { url = "https://files.pythonhosted.org/packages/55/3d/c2d1cbf5860ec5fc88c865769fef915ad6bd0bd0e1b7dcff69abd155810e/kaldialign-0.9.3-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:8a37d75db6c42a4d7f2a5224693d82d88dfdd92121966424288399cf51380851", size = 71583, upload-time = "2026-01-05T14:57:53.519Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/4d/cc5f5de6f5a44414f5ec6b1e6480165667075b1e7b343d0dc84ca6b45ca6/kaldialign-0.9.3-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d5f2c9eed36b07616f83c6611dca200ff1e519483fe5934c1aa4e34382f71997", size = 77753, upload-time = "2026-01-14T23:06:07.558Z" },
+    { url = "https://files.pythonhosted.org/packages/12/90/4237909768cf8dd84a7f2ad390100f2eae7cefde4bc5aa3286eb5d680bde/kaldialign-0.9.3-cp314-cp314-win32.whl", hash = "sha256:7d804de65bd60d15abe36cf8eec15060f567acbc7d0d375996d8b0ef0eaac707", size = 68178, upload-time = "2026-01-05T14:59:54.345Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/af/271b62bcaf52bb100e33cfd66a7caf9af0a446b112bf26760b2fd92bdc9a/kaldialign-0.9.3-cp314-cp314-win_amd64.whl", hash = "sha256:3399cb7980d3c970b59e0f0a8c24c21e734130fe9e4edee5b23a4fdde475ccaf", size = 74417, upload-time = "2026-01-14T23:06:53.043Z" },
+]
 
 [[package]]
 name = "kiwisolver"
@@ -2065,14 +2071,15 @@ wheels = [
 ]
 
 [[package]]
-name = "nemo-toolkit"
-version = "2.7.2"
+name = "nemo-toolkit-asr"
+version = "2.8.0rc2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cuda-bindings", marker = "sys_platform != 'darwin'" },
     { name = "fsspec" },
     { name = "huggingface-hub" },
     { name = "numba", marker = "sys_platform == 'darwin'" },
+    { name = "numba-cuda", marker = "sys_platform != 'darwin'" },
     { name = "numexpr" },
     { name = "numpy" },
     { name = "onnx" },
@@ -2088,9 +2095,9 @@ dependencies = [
     { name = "wget" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/5f/55420bbf8ce4336992296ba75ffc934156bf0027eb212794f8ff01a1bb4a/nemo_toolkit-2.7.2.tar.gz", hash = "sha256:7846ac04f52d71c8b4d3e9b3b96395cb753d324870500ba74c9942cacb928685", size = 4262239, upload-time = "2026-03-25T19:46:48.941Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/ca/e05c6f7a9b370d4027984209d7bf93c1ac187c72109902e41cd72ca3f50a/nemo_toolkit_asr-2.8.0rc2.tar.gz", hash = "sha256:bf62a693b9c41c90d2a0d455290e22306b9cc90e69a1e2f22ccf6d4bcdcef569", size = 4295797, upload-time = "2026-02-09T04:07:50.265Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/0f/133a79adaf0dbdebd4cd053ac7a4badc1b1dfe9aea77b6ab1f10baee6247/nemo_toolkit-2.7.2-py3-none-any.whl", hash = "sha256:5ebb12cb5277cd68a09836ddacde8278fdc5fdba972b3d11b2a18c8f4dcec373", size = 6025524, upload-time = "2026-03-25T19:46:45.722Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/a1/1bc718ee3b82febf7fb2ac2bc3fbe3428162f57341ab3ebcf877b91aefb3/nemo_toolkit_asr-2.8.0rc2-py3-none-any.whl", hash = "sha256:b184788d336de34466ebd9b13b9d61a1b638472776f8b3a19e13f602f14850e6", size = 6955024, upload-time = "2026-02-09T04:07:42.661Z" },
 ]
 
 [package.optional-dependencies]
@@ -2113,7 +2120,6 @@ asr = [
     { name = "marshmallow" },
     { name = "mediapy" },
     { name = "nv-one-logger-core" },
-    { name = "nv-one-logger-pytorch-lightning-integration" },
     { name = "nv-one-logger-training-telemetry" },
     { name = "omegaconf" },
     { name = "optuna" },
@@ -2166,6 +2172,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/e5/8267b0adb0c01b52b553df5062fbbb42c30ed5362d08b85cc913a36f838f/numba-0.65.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:c7fa502960f7a2f3f5cb025bc7bff888a3551277b92431bfdc5ba2f11a375749", size = 3816373, upload-time = "2026-04-01T03:51:56.18Z" },
     { url = "https://files.pythonhosted.org/packages/b0/f5/b8397ca360971669a93706b9274592b6864e4367a37d498fbbcb62aa2d48/numba-0.65.0-cp314-cp314t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5046c63f783ca3eb6195f826a50797465e7c4ce811daa17c9bea47e310c9b964", size = 3532782, upload-time = "2026-04-01T03:51:58.387Z" },
     { url = "https://files.pythonhosted.org/packages/f5/21/1e73fa16bf0393ebb74c5bb208d712152ffdfc84600a8e93a3180317856e/numba-0.65.0-cp314-cp314t-win_amd64.whl", hash = "sha256:46fd679ae4f68c7a5d5721efbd29ecee0b0f3013211591891d79b51bfdf73113", size = 2757611, upload-time = "2026-04-01T03:52:00.083Z" },
+]
+
+[[package]]
+name = "numba-cuda"
+version = "0.15.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numba" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/56/d7/f8dd134b7896b30d69e5b29af27264b1143458d43e088f210abc16cba91e/numba_cuda-0.15.1.tar.gz", hash = "sha256:219771179a396ba2a6911648b908609c1373d2055373d5fb8294f0a1947c4690", size = 491996, upload-time = "2025-06-14T21:34:24.931Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/04/307a793117d631fceb2ae9b32c2b1cd42e36ba857f1815d1b417d1faa9b7/numba_cuda-0.15.1-py3-none-any.whl", hash = "sha256:b1b804d1b970996e9aab474d689166d1af62934abb456581fe005d052b4e70c6", size = 591026, upload-time = "2025-06-14T21:34:23.409Z" },
 ]
 
 [[package]]
@@ -2238,22 +2256,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3b/37/963095797035f371e0db6ea761f5aaccb624fc786af217115b423baeb0e2/nv_one_logger_core-2.3.1.tar.gz", hash = "sha256:cbb2f87604c78b96a302f32d87199902129d76153a73a20f8455a250b3246c1d", size = 52640, upload-time = "2025-10-29T21:11:55.812Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/c4/ea91554c4fcbff66057f667690101d7a4b965605741350ac661b03fa6c46/nv_one_logger_core-2.3.1-py3-none-any.whl", hash = "sha256:0c8b77bcdac4daa1ea913bf8d4afd2a057bd5526e3654ac39f67caba157341a6", size = 63066, upload-time = "2025-10-29T21:11:52.753Z" },
-]
-
-[[package]]
-name = "nv-one-logger-pytorch-lightning-integration"
-version = "2.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lightning" },
-    { name = "nv-one-logger-core" },
-    { name = "nv-one-logger-training-telemetry" },
-    { name = "setuptools" },
-    { name = "strenum" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/d0/3475b7ab17d367362f650fb0419e8669f41e63c1018f4a8ac2fbecfd2e85/nv_one_logger_pytorch_lightning_integration-2.3.1.tar.gz", hash = "sha256:b32d99b6a8f02a16538bcade939b0a7edd7249e936aacefe336b5519447340c3", size = 10979, upload-time = "2025-10-29T21:22:10.464Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/56/01a55efb365b6864646b4ac941a1d9de66f024e880764510ba5a7a63f62c/nv_one_logger_pytorch_lightning_integration-2.3.1-py3-none-any.whl", hash = "sha256:f92904055fb0082516480cc1e3dd0bb6cedb2b033985ebfd4814b9cbf7da2cb2", size = 9822, upload-time = "2025-10-29T21:22:09.37Z" },
 ]
 
 [[package]]

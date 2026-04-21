@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 asr-nemo = [
-    "nemo-toolkit[asr]>=2.5.0",
+    "nemo-toolkit-asr[asr]>=2.8.0rc2",
 ]
 
 [dependency-groups]
