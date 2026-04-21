@@ -1,8 +1,8 @@
 from __future__ import annotations
 import unittest
 from app.models import DiarizationSegment, PipelineSegment
-from app.stages.cleanup import SegmentCleaner
-from app.stages.postprocess_segments import SegmentNormalizer
+from app.pipeline.stages.transcript.cleanup import SegmentCleaner
+from app.pipeline.stages.diarization.postprocess_segments import SegmentNormalizer
 
 
 class RegressionTests(unittest.TestCase):

@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 
 from app.models import ChunkRecord
-from app.stages.asr_transcribe import transcribe_chunks
-from app.stages.asr_adapters import ASRAdapter
+from app.pipeline.stages.asr.transcribe import transcribe_chunks
+from app.pipeline.stages.asr.adapters import ASRAdapter
 
 
 class _StubAdapter(ASRAdapter):

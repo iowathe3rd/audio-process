@@ -7,7 +7,7 @@ from app.io_utils import read_json, write_json
 from app.models import ChunkRecord, DiarizationSegment, PipelineSegment, TranscribedSegment
 from app.pipeline.artifact_manager import ArtifactManager
 from app.pipeline.factory import StageFactory
-from app.stages.text_metrics import language_switching_ratio, punctuation_density
+from app.pipeline.stages.text.metrics import language_switching_ratio, punctuation_density
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class PipelineOrchestrator:
         if not self.artifacts.is_fresh(asr_raw_path, [chunks_manifest_path]):
             logger.info("Stage: ASR")
             adapter = self.factory.create_asr_adapter(self.config)
-            from app.stages.asr_transcribe import transcribe_chunks
+            from app.pipeline.stages.asr.transcribe import transcribe_chunks
             transcripts, asr_report = transcribe_chunks(
                 chunks=chunk_records,
                 adapter=adapter,

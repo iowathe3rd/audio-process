@@ -1,7 +1,7 @@
 from __future__ import annotations
 import unittest
 from app.models import ChunkRecord, PipelineSegment, TranscribedSegment
-from app.stages.chunk_quality import QualityAnalyzer
+from app.pipeline.stages.quality.chunk_quality import QualityAnalyzer
 
 
 class ChunkQualityTests(unittest.TestCase):

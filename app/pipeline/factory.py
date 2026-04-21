@@ -35,21 +35,21 @@ class StageFactory:
     @staticmethod
     def create_normalizer(_config: PipelineConfig) -> AudioNormalizer:
         """Create audio normalizer instance."""
-        from app.stages.normalize import SoXNormalizer
+        from app.pipeline.stages.audio.normalize import SoXNormalizer
 
         return SoXNormalizer()
 
     @staticmethod
     def create_enhancer(config: PipelineConfig) -> AudioEnhancer:
         """Create audio enhancer instance."""
-        from app.stages.enhance_audio import SpectralEnhancer
+        from app.pipeline.stages.audio.enhance_audio import SpectralEnhancer
 
         return SpectralEnhancer()
 
     @staticmethod
     def create_diarizer(config: PipelineConfig) -> Diarizer:
         """Create diarizer instance."""
-        from app.stages.diarization import PyannoteDiarizer
+        from app.pipeline.stages.diarization.diarization import PyannoteDiarizer
 
         if not config.hf_token:
             raise ValueError(
@@ -65,21 +65,21 @@ class StageFactory:
     @staticmethod
     def create_segment_postprocessor(_config: PipelineConfig) -> SegmentPostprocessor:
         """Create segment postprocessor instance."""
-        from app.stages.postprocess_segments import SegmentNormalizer
+        from app.pipeline.stages.diarization.postprocess_segments import SegmentNormalizer
 
         return SegmentNormalizer()
 
     @staticmethod
     def create_chunk_builder(_config: PipelineConfig) -> ChunkBuilder:
         """Create chunk builder instance."""
-        from app.stages.segmentation import WavChunkBuilder
+        from app.pipeline.stages.chunking.segmentation import WavChunkBuilder
 
         return WavChunkBuilder()
 
     @staticmethod
     def create_asr_adapter(config: PipelineConfig) -> ASRAdapter:
         """Create ASR adapter with fallback support."""
-        from app.stages.asr_adapters import make_asr_adapter
+        from app.pipeline.stages.asr.adapters import make_asr_adapter
 
         primary_model_name = config.nemo_model_name
         fallback_model_name = config.nemo_model_name
@@ -96,14 +96,14 @@ class StageFactory:
     @staticmethod
     def create_segment_merger(_config: PipelineConfig) -> SegmentMerger:
         """Create segment merger instance."""
-        from app.stages.merge import ChunkTranscriptMerger
+        from app.pipeline.stages.transcript.merge import ChunkTranscriptMerger
 
         return ChunkTranscriptMerger()
 
     @staticmethod
     def create_transcript_cleaner(config: PipelineConfig) -> TranscriptCleaner:
         """Create transcript cleaner instance."""
-        from app.stages.cleanup import SegmentCleaner
+        from app.pipeline.stages.transcript.cleanup import SegmentCleaner
 
         return SegmentCleaner(
             min_duration_ms=config.cleanup_min_duration_ms,
@@ -113,7 +113,7 @@ class StageFactory:
     @staticmethod
     def create_semantic_window_builder(config: PipelineConfig) -> SemanticWindowBuilder:
         """Create semantic window builder instance."""
-        from app.stages.semantic_windows import SemanticWindowGrouper
+        from app.pipeline.stages.transcript.semantic_windows import SemanticWindowGrouper
 
         return SemanticWindowGrouper(
             max_chars=config.llm_window_max_chars,
@@ -125,7 +125,7 @@ class StageFactory:
     @staticmethod
     def create_text_processor(config: PipelineConfig) -> TextProcessor:
         """Create text processor instance."""
-        from app.stages.vertex_text import VertexTextProcessor
+        from app.pipeline.stages.text.vertex_text import VertexTextProcessor
 
         return VertexTextProcessor(
             api_key=config.google_api_key,
@@ -139,7 +139,7 @@ class StageFactory:
     @staticmethod
     def create_chunk_quality_analyzer(config: PipelineConfig) -> ChunkQualityAnalyzer:
         """Create chunk quality analyzer instance."""
-        from app.stages.chunk_quality import QualityAnalyzer
+        from app.pipeline.stages.quality.chunk_quality import QualityAnalyzer
 
         return QualityAnalyzer(
             low_confidence_min_cps=config.low_confidence_min_cps,

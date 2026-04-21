@@ -2,7 +2,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from app.stages.asr_adapters import FallbackASRAdapter, build_single_asr_adapter, ASRAdapter
+from app.pipeline.stages.asr.adapters import FallbackASRAdapter, build_single_asr_adapter, ASRAdapter
 
 
 class _OkAdapter(ASRAdapter):

@@ -3,8 +3,8 @@ import unittest
 from typing import Any
 
 from app.models import PipelineSegment
-from app.stages.semantic_windows import SemanticWindowGrouper
-from app.stages.vertex_text import VertexTextProcessor
+from app.pipeline.stages.transcript.semantic_windows import SemanticWindowGrouper
+from app.pipeline.stages.text.vertex_text import VertexTextProcessor
 
 
 class _DriftProcessor:
